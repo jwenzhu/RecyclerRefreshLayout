@@ -132,6 +132,12 @@ public class RefreshLayout extends LinearLayout{
      */
     public void startLoading(){
         mIsLoading = true;
+        loadingView.startLoading();
+        int scrollY =  Math.abs( getScrollY());
+        if(scrollY > mLoadingHeight){
+            mScroller.startScroll(0, -scrollY,0,  scrollY - mLoadingHeight, DEFAULT_DURATION);
+        }
+        invalidate();
     }
 
     /**
@@ -156,6 +162,9 @@ public class RefreshLayout extends LinearLayout{
             if(currY == 0){
                 refreshView.setCircleRadius(0);
             }
+            /**
+             * BUG
+             */
             scrollTo(0,-Math.abs(currY));
             invalidate();
         }

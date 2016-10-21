@@ -10,17 +10,19 @@ import android.os.Message;
 import android.util.AttributeSet;
 import android.view.View;
 
+import com.jwen.recyclerrefreshlayout.R;
+
 /**
  * author: Jwen
  * date:2016-10-17.
  */
 public class LoadingView extends View {
 
-    private float mStartRadian = -90f;
-    private float mEndRadian = 340f;
+    private float mStartRadian = Constants.START_RADIAN;
+    private float mEndRadian = Constants.END_RADIAN;
     private Paint mPaint;
-    private String mLoadingText = "加载中，请稍后...";
-    private boolean mIsStartLoading = false;
+    private String mLoadingText = getResources().getString(R.string.loading_start);
+    private boolean mIsStartLoading = false;//是否开始加载
 
 
     private Handler mHandler = new Handler(){
@@ -30,7 +32,7 @@ public class LoadingView extends View {
                 if(mIsStartLoading){
                     invalidate();
                     mHandler.sendEmptyMessageDelayed(0, 5);
-                    mStartRadian = mStartRadian%360 + 10;
+                    mStartRadian = mStartRadian%360f + Constants.RATE_ROTATE;
                 }
             }
         }
@@ -51,42 +53,53 @@ public class LoadingView extends View {
         mPaint.setAntiAlias(true);
         mPaint.setColor(Color.GRAY);  //设置画笔颜色
         mPaint.setStyle(Paint.Style.STROKE);//填充样式改为描边
+
+
     }
-
-
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
-        setMeasuredDimension(widthMeasureSpec,120);
+        setMeasuredDimension(widthMeasureSpec,Constants.LOADING_DEFAULT_HEIGHT);
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        RectF rect = new RectF(200, 20, 280, 100);
+        RectF rect = new RectF(Constants.RECT_LEFT,Constants.RECT_TOP,
+                Constants.RECT_LEFT + Constants.RECT_DEGREE, Constants.RECT_TOP + Constants.RECT_DEGREE);
         canvas.drawArc(rect, mStartRadian, mEndRadian, false, mPaint);
 
-        mPaint.setTextSize(30);
-        canvas.drawText(mLoadingText,300,70,mPaint);
+        mPaint.setTextSize(Constants.TEXT_SIZE);
+        canvas.drawText(mLoadingText,Constants.TEXT_LEFT,Constants.TEXT_TOP,mPaint);
+    }
+
+
+
+    public void initView(){
+        mLoadingText = getResources().getString(R.string.loading_start);
+        mStartRadian = Constants.START_RADIAN;
+        mEndRadian = Constants.END_RADIAN;
+        invalidate();
     }
 
 
     public void startLoading(){
         mIsStartLoading = true;
-        mLoadingText = "加载中，请稍后...";
+        mLoadingText =getResources().getString(R.string.loading_loading);
         mHandler.sendEmptyMessage(0);
     }
 
     public void stopLoading(){
         mIsStartLoading = false;
-        mLoadingText = "加载完成";
-        mStartRadian = -90f;
-        mEndRadian = 340f;
+        mLoadingText =getResources().getString(R.string.loading_finish);
         invalidate();
         mHandler.removeMessages(0);
     }
+
+
+
 
 
 

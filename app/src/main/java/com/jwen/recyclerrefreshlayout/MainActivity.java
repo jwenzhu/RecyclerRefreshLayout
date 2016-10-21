@@ -5,6 +5,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 
+import com.jwen.recyclerrefreshlayout.widget.OnLoadingListener;
 import com.jwen.recyclerrefreshlayout.widget.OnRefreshListener;
 import com.jwen.recyclerrefreshlayout.widget.RefreshLayout;
 
@@ -27,6 +28,18 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         refreshLayout.stopRefresh();
+                    }
+                },2000);
+            }
+        });
+
+        refreshLayout.setOnLoadingListener(new OnLoadingListener() {
+            @Override
+            public void onLoading() {
+                mHandler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        refreshLayout.stopLoading();
                     }
                 },2000);
             }

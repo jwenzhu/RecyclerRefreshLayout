@@ -23,6 +23,12 @@ public class RefreshLayout extends LinearLayout{
     private boolean mIsLoading = false;
     private OverScroller mScroller;
 
+
+    private OnLoadingListener mOnLoadingListener;
+    public void setOnLoadingListener(OnLoadingListener onLoadingListener){
+        this.mOnLoadingListener = onLoadingListener;
+    }
+
     private OnRefreshListener mOnRefreshListener;
     public void setOnRefreshListener(OnRefreshListener onRefreshListener){
         this.mOnRefreshListener = onRefreshListener;
@@ -65,7 +71,11 @@ public class RefreshLayout extends LinearLayout{
         switch (event.getAction()){
             case MotionEvent.ACTION_DOWN:
                 startY = (int) event.getY();
-                return !mIsRefreshing;
+                if(mIsRefreshing || mIsLoading){
+                    return false;
+                }else {
+                    return true;
+                }
             case MotionEvent.ACTION_MOVE:
                 disY = (int) (startY - event.getY());
                 if(disY < 0){
@@ -84,7 +94,11 @@ public class RefreshLayout extends LinearLayout{
                         startRefresh();
                     }
                 }else{
-                    startLoading();
+                    if(Math.abs(disY) < mLoadingHeight){
+                        smoothCloseLoading();
+                    }else{
+                        startLoading();
+                    }
                 }
                 break;
             case MotionEvent.ACTION_CANCEL:
@@ -111,9 +125,9 @@ public class RefreshLayout extends LinearLayout{
         }
         mIsRefreshing = true;
         refreshView.startRefresh();
-        int scrollY =  Math.abs( getScrollY());
-        if(scrollY > mRefreshHeight){
-            mScroller.startScroll(0, scrollY,0,  -(scrollY - mRefreshHeight), DEFAULT_DURATION);
+        int scrollY =  getScrollY();
+        if(Math.abs(scrollY) > mRefreshHeight){
+            mScroller.startScroll(0, scrollY,0,  Math.abs(scrollY) - mRefreshHeight, DEFAULT_DURATION);
         }
         invalidate();
     }
@@ -127,15 +141,25 @@ public class RefreshLayout extends LinearLayout{
     }
 
 
+    private void smoothCloseLoading() {
+        mIsLoading = false;
+        int scrollY =  getScrollY();
+        mScroller.startScroll(0, scrollY,0, -scrollY, DEFAULT_DURATION);
+        invalidate();
+    }
+
     /**
      * 加载更多
      */
     public void startLoading(){
+        if(mOnLoadingListener != null){
+            mOnLoadingListener.onLoading();
+        }
         mIsLoading = true;
         loadingView.startLoading();
-        int scrollY =  Math.abs( getScrollY());
-        if(scrollY > mLoadingHeight){
-            mScroller.startScroll(0, -scrollY,0,  scrollY - mLoadingHeight, DEFAULT_DURATION);
+        int scrollY =  getScrollY();
+        if( Math.abs(scrollY) > mLoadingHeight){
+            mScroller.startScroll(0, scrollY,0, mLoadingHeight - Math.abs(scrollY), DEFAULT_DURATION);
         }
         invalidate();
     }
@@ -148,24 +172,15 @@ public class RefreshLayout extends LinearLayout{
         loadingView.stopLoading();
     }
 
-    private void smoothCloseLoading() {
-        mIsLoading = false;
-        int scrollY = getScrollY();
-        mScroller.startScroll(0, scrollY,0,  -scrollY, DEFAULT_DURATION);
-        invalidate();
-    }
-
     @Override
     public void computeScroll() {
         if (mScroller.computeScrollOffset()) {
             int currY = mScroller.getCurrY();
             if(currY == 0){
                 refreshView.setCircleRadius(0);
+                loadingView.initView();
             }
-            /**
-             * BUG
-             */
-            scrollTo(0,-Math.abs(currY));
+            scrollTo(0,currY);
             invalidate();
         }
     }

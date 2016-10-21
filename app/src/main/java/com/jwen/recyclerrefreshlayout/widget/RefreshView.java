@@ -13,7 +13,6 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.AttributeSet;
 import android.view.View;
-
 import com.jwen.recyclerrefreshlayout.R;
 
 
@@ -26,15 +25,17 @@ public class RefreshView extends View{
     private static int TOTAL_PART = 100;
     private static float SCALE_RADIAN = 360f/TOTAL_PART;
     private int mScreenWidth;
+    private int mViewHeight;
     private float mRadian = 0f;//弧度
-    private String mRefreshText = "下拉刷新...";
+    private String mRefreshText = getResources().getString(R.string.refresh_start);
     private boolean mIsOpen =false;
     private boolean mIsStartRefresh = false;
 
-    private float mStartRadian = -90f;
-    private float mEndRadian = 340f;
+    private float mStartRadian =Constants.START_RADIAN;
+    private float mEndRadian =Constants.END_RADIAN;
 
-    private float mBottomDistance = 100f;//文字到底部的距离
+    private float mBottomDistance = 40f;//文字到底部的距离
+    private float mTextBottomDistance = mBottomDistance + Constants.RECT_DEGREE/4;//文字到底部的距离
 
     private Bitmap mBitmap;
     private Paint mPaint;
@@ -46,7 +47,7 @@ public class RefreshView extends View{
                 if(mIsStartRefresh){
                     invalidate();
                     mHandler.sendEmptyMessageDelayed(0, 5);
-                    mStartRadian = mStartRadian%360 + 10;
+                    mStartRadian = mStartRadian%360f + Constants.RATE_ROTATE;
                 }
             }
         }
@@ -79,10 +80,11 @@ public class RefreshView extends View{
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
         if(mBitmap == null){
-            setMeasuredDimension(widthMeasureSpec,mBitmap.getHeight());
+            mViewHeight = mBitmap.getHeight();
         }else{
-            setMeasuredDimension(widthMeasureSpec,300);
+            mViewHeight = 300;
         }
+        setMeasuredDimension(widthMeasureSpec,mViewHeight);
 
     }
 
@@ -91,7 +93,8 @@ public class RefreshView extends View{
         super.onDraw(canvas);
         canvas.drawColor(Color.WHITE);
         canvas.drawBitmap(mBitmap, null, new Rect(0, 0,mScreenWidth,mScreenWidth*mBitmap.getHeight()/mBitmap.getWidth()), mPaint);
-        RectF rect = new RectF(200, 180, 280, 260);
+        RectF rect = new RectF(Constants.RECT_LEFT, mViewHeight - mBottomDistance - Constants.RECT_DEGREE,
+                Constants.RECT_LEFT + Constants.RECT_DEGREE, mViewHeight - mBottomDistance);
 
 
         if(mIsStartRefresh){
@@ -101,25 +104,26 @@ public class RefreshView extends View{
         }
 
         if(!mIsOpen){
-            canvas.drawLine(240,200,240,240,mPaint);
+            canvas.drawLine(Constants.RECT_LEFT + Constants.RECT_DEGREE/2,mViewHeight - mBottomDistance - Constants.RECT_DEGREE*3/4,
+                    Constants.RECT_LEFT + Constants.RECT_DEGREE/2,mViewHeight - mBottomDistance - Constants.RECT_DEGREE/4,mPaint);
             Path path = new Path();
-            path.moveTo(220,220);
-            path.lineTo(240,240);
-            path.lineTo(260,220);
+            path.moveTo(Constants.RECT_LEFT + Constants.RECT_DEGREE/4,mViewHeight - mBottomDistance - Constants.RECT_DEGREE/2);
+            path.lineTo(Constants.RECT_LEFT + Constants.RECT_DEGREE/2,mViewHeight - mBottomDistance - Constants.RECT_DEGREE/4);
+            path.lineTo(Constants.RECT_LEFT + Constants.RECT_DEGREE*3/4,mViewHeight - mBottomDistance - Constants.RECT_DEGREE/2);
             canvas.drawPath(path,mPaint);
         }
 
-        mPaint.setTextSize(30);
-        canvas.drawText(mRefreshText,300,230,mPaint);
+        mPaint.setTextSize(Constants.TEXT_SIZE);
+        canvas.drawText(mRefreshText,Constants.TEXT_LEFT,mViewHeight - mTextBottomDistance,mPaint);
     }
 
     public void setCircleRadius(int radius){
         if(radius >= TOTAL_PART){
             radius = TOTAL_PART;
-            mRefreshText = "释放刷新...";
+            mRefreshText = getResources().getString(R.string.refresh_stop);
             mIsOpen = true;
         }else {
-            mRefreshText = "下拉刷新...";
+            mRefreshText = getResources().getString(R.string.refresh_start);
             mIsOpen = false;
         }
         mRadian = radius*SCALE_RADIAN;
@@ -129,15 +133,15 @@ public class RefreshView extends View{
 
     public void startRefresh(){
         mIsStartRefresh = true;
-        mRefreshText = "加载中...";
+        mRefreshText = getResources().getString(R.string.refresh_loading);
         mHandler.sendEmptyMessage(0);
     }
 
     public void stopRefresh(){
         mIsStartRefresh = false;
-        mRefreshText = "加载完成";
-        mStartRadian = -90f;
-        mEndRadian = 340f;
+        mRefreshText = getResources().getString(R.string.refresh_finish);
+        mStartRadian = Constants.START_RADIAN;
+        mEndRadian = Constants.END_RADIAN;
         invalidate();
         mHandler.removeMessages(0);
     }

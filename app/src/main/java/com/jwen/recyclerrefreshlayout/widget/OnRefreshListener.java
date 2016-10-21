@@ -5,5 +5,8 @@ package com.jwen.recyclerrefreshlayout.widget;
  * date:2016-10-20.
  */
 public interface OnRefreshListener {
+    /**
+     * 下拉刷新监听
+     */
     public void onRefresh();
 }

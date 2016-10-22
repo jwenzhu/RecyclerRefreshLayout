@@ -1,6 +1,8 @@
 package com.jwen.recyclerrefreshlayout.widget;
 
 import android.content.Context;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -50,19 +52,57 @@ public class RefreshLayout extends LinearLayout{
 
     RefreshView refreshView;
     LoadingView loadingView;
-    View contentView;
+    RecyclerView contentView;
     @Override
     protected void onFinishInflate() {
         super.onFinishInflate();
-        contentView = getChildAt(0);
+        contentView = (RecyclerView) getChildAt(0);
         refreshView = new RefreshView(getContext());
         this.addView(refreshView);
         loadingView = new LoadingView(getContext());
         this.addView(loadingView);
     }
 
+    int firstY = 0;
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent ev) {
+        boolean isIntercept = super.onInterceptTouchEvent(ev);
+        float disY;
 
-    private int startY;
+        int firstItemPosition = 0;
+        int lastItemPosition = 0;
+        RecyclerView.LayoutManager layoutManager = contentView.getLayoutManager();
+        int count = contentView.getAdapter().getItemCount();
+        if(layoutManager instanceof LinearLayoutManager){
+            LinearLayoutManager linearManager = (LinearLayoutManager) layoutManager;
+            //获取第一个可见view的位置
+            firstItemPosition = linearManager.findFirstVisibleItemPosition();
+            //获取最后一个可见view的位置
+            lastItemPosition = linearManager.findLastVisibleItemPosition();
+        }
+        switch (ev.getAction()){
+            case MotionEvent.ACTION_DOWN:
+                firstY = (int) ev.getY();
+                break;
+            case MotionEvent.ACTION_MOVE:
+                disY = ev.getY() - firstY;
+                if(firstItemPosition == 0 && disY > 0){
+                    return true;
+                } else if((lastItemPosition == count-1) && disY < 0){
+                    return true;
+                }else{
+                    return false;
+                }
+            case MotionEvent.ACTION_UP:
+                break;
+            case MotionEvent.ACTION_CANCEL:
+                break;
+
+        }
+        return isIntercept;
+    }
+
+    private int startY = 0;
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         boolean isTouch = super.onTouchEvent(event);
@@ -77,6 +117,7 @@ public class RefreshLayout extends LinearLayout{
                     return true;
                 }
             case MotionEvent.ACTION_MOVE:
+                startY = firstY;
                 disY = (int) (startY - event.getY());
                 if(disY < 0){
                     if(Math.abs(disY) > 200){

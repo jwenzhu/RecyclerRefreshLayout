@@ -76,7 +76,9 @@ public class LoadingView extends View {
     }
 
 
-
+    /**
+     * 初始化
+     */
     public void initView(){
         mLoadingText = getResources().getString(R.string.loading_start);
         mStartRadian = Constants.START_RADIAN;
@@ -85,12 +87,18 @@ public class LoadingView extends View {
     }
 
 
+    /**
+     * 开始加载
+     */
     public void startLoading(){
         mIsStartLoading = true;
         mLoadingText =getResources().getString(R.string.loading_loading);
         mHandler.sendEmptyMessage(0);
     }
 
+    /**
+     * 停止加载
+     */
     public void stopLoading(){
         mIsStartLoading = false;
         mLoadingText =getResources().getString(R.string.loading_finish);

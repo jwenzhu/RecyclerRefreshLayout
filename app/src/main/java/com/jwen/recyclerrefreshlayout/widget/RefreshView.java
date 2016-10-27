@@ -22,10 +22,10 @@ import com.jwen.recyclerrefreshlayout.R;
  */
 public class RefreshView extends View{
 
-    private static int TOTAL_PART = 100;
-    private static float SCALE_RADIAN = 360f/TOTAL_PART;
-    private int mScreenWidth;
-    private int mViewHeight;
+    private static int TOTAL_PART = 100;//总份数
+    private static float SCALE_RADIAN = 360f/TOTAL_PART;//每份的角度
+    private int mScreenWidth;//屏幕的宽度
+    private int mViewHeight;//高度
     private float mRadian = 0f;//弧度
     private String mRefreshText = getResources().getString(R.string.refresh_start);
     private boolean mIsOpen =false;
@@ -117,6 +117,11 @@ public class RefreshView extends View{
         canvas.drawText(mRefreshText,Constants.TEXT_LEFT,mViewHeight - mTextBottomDistance,mPaint);
     }
 
+    /**
+     * 设置弧度
+     * @param radius
+     */
+
     public void setCircleRadius(int radius){
         if(radius >= TOTAL_PART){
             radius = TOTAL_PART;
@@ -130,13 +135,18 @@ public class RefreshView extends View{
         invalidate();
     }
 
-
+    /**
+     * 开始刷新
+     */
     public void startRefresh(){
         mIsStartRefresh = true;
         mRefreshText = getResources().getString(R.string.refresh_loading);
         mHandler.sendEmptyMessage(0);
     }
 
+    /**
+     * 停止刷新
+     */
     public void stopRefresh(){
         mIsStartRefresh = false;
         mRefreshText = getResources().getString(R.string.refresh_finish);
@@ -147,13 +157,19 @@ public class RefreshView extends View{
     }
 
 
-
-
+    /**
+     * 设置颜色
+     * @param color
+     */
     public  void setTextColor(int color){
         mPaint.setColor(color);
         invalidate();
     }
 
+    /**
+     * 设置背景
+     * @param bitmap
+     */
     public void setBitmapResource(Bitmap bitmap){
         mBitmap = bitmap;
         invalidate();

@@ -1,10 +1,10 @@
 package com.jwen.recyclerrefreshlayout.widget;
 
 import android.content.Context;
+import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -17,13 +17,15 @@ import android.widget.OverScroller;
 public class RefreshLayout extends LinearLayout{
 
 
-    private int mDefaultWidth;
-    private static int DEFAULT_DURATION = 1000;
-    private int mRefreshHeight;
-    private int mLoadingHeight;
-    private boolean mIsRefreshing = false;
-    private boolean mIsLoading = false;
+    private int mDefaultWidth;//默认宽度
+    private static int DEFAULT_DURATION = 1000;//动画默认时间
+    private int mRefreshHeight;//刷新控件高度
+    private int mLoadingHeight;//加载控件高度
+    private boolean mIsRefreshing = false;//是否刷新
+    private boolean mIsLoading = false;//是否加载
     private OverScroller mScroller;
+    private boolean isInControl = false;//是否菜单滑动
+    private int count;//条目总数
 
 
     private OnLoadingListener mOnLoadingListener;
@@ -52,15 +54,86 @@ public class RefreshLayout extends LinearLayout{
 
     RefreshView refreshView;
     LoadingView loadingView;
-    RecyclerView contentView;
+    View contentView;
+    private RecyclerView.LayoutManager layoutManager;
     @Override
     protected void onFinishInflate() {
         super.onFinishInflate();
-        contentView = (RecyclerView) getChildAt(0);
+        contentView = getChildAt(0);
+        if(contentView instanceof RecyclerView){
+            count = ((RecyclerView)contentView).getAdapter().getItemCount();
+            layoutManager= ((RecyclerView)contentView).getLayoutManager();
+        }
         refreshView = new RefreshView(getContext());
         this.addView(refreshView);
         loadingView = new LoadingView(getContext());
         this.addView(loadingView);
+    }
+
+    /**
+     * 获取第一条目的位置
+     * @return firstItemPosition
+     */
+    private int getFirstItemPosition(){
+        int firstItemPosition = 0;
+        if(layoutManager == null){
+            return firstItemPosition;
+        }
+        if(layoutManager instanceof LinearLayoutManager){
+            //获取第一个可见view的位置
+            firstItemPosition = ((LinearLayoutManager) layoutManager).findFirstCompletelyVisibleItemPosition();
+        }else if(layoutManager instanceof GridLayoutManager){
+            firstItemPosition = ((GridLayoutManager) layoutManager).findFirstCompletelyVisibleItemPosition();
+        }
+        return firstItemPosition;
+    }
+
+    private int getLastItemPosition(){
+        int lastItemPosition = 0;
+        if(layoutManager == null){
+            return lastItemPosition;
+        }
+        if(layoutManager instanceof LinearLayoutManager){
+            //获取最后一个可见view的位置
+            lastItemPosition = ((LinearLayoutManager) layoutManager).findLastCompletelyVisibleItemPosition();
+        }else if(layoutManager instanceof GridLayoutManager){
+            lastItemPosition = ((GridLayoutManager) layoutManager).findLastCompletelyVisibleItemPosition();
+        }
+        return lastItemPosition;
+    }
+
+
+    /**
+     * 获取第一条目的位置
+     * @return firstItemPosition
+     */
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        boolean dispatch = super.dispatchTouchEvent(ev);
+        int firstItemPosition = getFirstItemPosition();
+        int lastItemPosition = getLastItemPosition();
+
+        switch (ev.getAction()){
+            case MotionEvent.ACTION_DOWN:
+                break;
+            case MotionEvent.ACTION_MOVE:
+                    if((!isInControl) && (firstItemPosition == 0 || (lastItemPosition == count-1)) ){
+                        isInControl = true;
+                        ev.setAction(MotionEvent.ACTION_CANCEL);
+                        MotionEvent ev2 = MotionEvent.obtain(ev);
+                        dispatchTouchEvent(ev);
+                        ev2.setAction(MotionEvent.ACTION_DOWN);
+                        return dispatchTouchEvent(ev2);
+                    }
+                break;
+            case MotionEvent.ACTION_UP:
+                isInControl = false;
+                break;
+            case MotionEvent.ACTION_CANCEL:
+                break;
+
+        }
+        return dispatch;
     }
 
     int firstY = 0;
@@ -69,30 +142,16 @@ public class RefreshLayout extends LinearLayout{
         boolean isIntercept = super.onInterceptTouchEvent(ev);
         float disY;
 
-        int firstItemPosition = 0;
-        int lastItemPosition = 0;
-        RecyclerView.LayoutManager layoutManager = contentView.getLayoutManager();
-        int count = contentView.getAdapter().getItemCount();
-        if(layoutManager instanceof LinearLayoutManager){
-            LinearLayoutManager linearManager = (LinearLayoutManager) layoutManager;
-            //获取第一个可见view的位置
-            firstItemPosition = linearManager.findFirstVisibleItemPosition();
-            //获取最后一个可见view的位置
-            lastItemPosition = linearManager.findLastVisibleItemPosition();
-        }
+        int firstItemPosition = getFirstItemPosition();
+        int lastItemPosition = getLastItemPosition();
         switch (ev.getAction()){
             case MotionEvent.ACTION_DOWN:
                 firstY = (int) ev.getY();
                 break;
             case MotionEvent.ACTION_MOVE:
                 disY = ev.getY() - firstY;
-                if(firstItemPosition == 0 && disY > 0){
-                    return true;
-                } else if((lastItemPosition == count-1) && disY < 0){
-                    return true;
-                }else{
-                    return false;
-                }
+                if((firstItemPosition == 0 && disY > 0) || ((lastItemPosition == count-1) && disY < 0)) return true;
+                return false;
             case MotionEvent.ACTION_UP:
                 break;
             case MotionEvent.ACTION_CANCEL:
@@ -106,23 +165,16 @@ public class RefreshLayout extends LinearLayout{
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         boolean isTouch = super.onTouchEvent(event);
-
         int disY = 0;
         switch (event.getAction()){
             case MotionEvent.ACTION_DOWN:
                 startY = (int) event.getY();
-                if(mIsRefreshing || mIsLoading){
-                    return false;
-                }else {
-                    return true;
-                }
+                return !(mIsRefreshing || mIsLoading);
             case MotionEvent.ACTION_MOVE:
                 startY = firstY;
                 disY = (int) (startY - event.getY());
-                if(disY < 0){
-                    if(Math.abs(disY) > 200){
+                if((disY < 0 )&& (Math.abs(disY) > 200)){
                         refreshView.setCircleRadius(Math.abs(disY)-200);
-                    }
                 }
                 scrollTo(0,disY);
                 break;
@@ -150,6 +202,9 @@ public class RefreshLayout extends LinearLayout{
         return isTouch;
     }
 
+    /**
+     * 关闭刷新
+     */
     private void smoothCloseRefresh() {
         mIsRefreshing = false;
         int scrollY = getScrollY();
@@ -181,7 +236,9 @@ public class RefreshLayout extends LinearLayout{
         refreshView.stopRefresh();
     }
 
-
+    /**
+     * 关闭加载
+     */
     private void smoothCloseLoading() {
         mIsLoading = false;
         int scrollY =  getScrollY();

@@ -5,6 +5,7 @@ import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -25,7 +26,6 @@ public class RefreshLayout extends LinearLayout{
     private boolean mIsLoading = false;//是否加载
     private OverScroller mScroller;
     private boolean isInControl = false;//是否菜单滑动
-    private int count;//条目总数
 
 
     private OnLoadingListener mOnLoadingListener;
@@ -73,10 +73,10 @@ public class RefreshLayout extends LinearLayout{
      * 获取第一条目的位置
      * @return firstItemPosition
      */
-    private int getFirstItemPosition(){
+    private int getCurrentFirstItemPosition(){
         int firstItemPosition = 0;
         if(layoutManager == null){
-            return firstItemPosition;
+            layoutManager= ((RecyclerView)contentView).getLayoutManager();
         }
         if(layoutManager instanceof LinearLayoutManager){
             //获取第一个可见view的位置
@@ -87,10 +87,10 @@ public class RefreshLayout extends LinearLayout{
         return firstItemPosition;
     }
 
-    private int getLastItemPosition(){
+    private int getCurrentLastItemPosition(){
         int lastItemPosition = 0;
         if(layoutManager == null){
-            return lastItemPosition;
+            layoutManager= ((RecyclerView)contentView).getLayoutManager();
         }
         if(layoutManager instanceof LinearLayoutManager){
             //获取最后一个可见view的位置
@@ -101,6 +101,18 @@ public class RefreshLayout extends LinearLayout{
         return lastItemPosition;
     }
 
+    /**
+     * 获取条目数目
+     * @return
+     */
+    private int getCurrentItemCount(){
+        int count = 0;
+        if(contentView instanceof RecyclerView){
+            count = ((RecyclerView)contentView).getAdapter().getItemCount();
+        }
+        return count;
+    }
+
 
     /**
      * 获取第一条目的位置
@@ -109,22 +121,22 @@ public class RefreshLayout extends LinearLayout{
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
         boolean dispatch = super.dispatchTouchEvent(ev);
-        int firstItemPosition = getFirstItemPosition();
-        int lastItemPosition = getLastItemPosition();
-        count = ((RecyclerView)contentView).getAdapter().getItemCount();
+        int firstItemPosition = getCurrentFirstItemPosition();
+        int lastItemPosition = getCurrentLastItemPosition();
+        int count = getCurrentItemCount();
 
         switch (ev.getAction()){
             case MotionEvent.ACTION_DOWN:
                 break;
             case MotionEvent.ACTION_MOVE:
-                    if((!isInControl) && (firstItemPosition == 0 || (lastItemPosition == count-1)) ){
-                        isInControl = true;
-                        ev.setAction(MotionEvent.ACTION_CANCEL);
-                        MotionEvent ev2 = MotionEvent.obtain(ev);
-                        dispatchTouchEvent(ev);
-                        ev2.setAction(MotionEvent.ACTION_DOWN);
-                        return dispatchTouchEvent(ev2);
-                    }
+                if((!isInControl) && (firstItemPosition == 0 || (lastItemPosition == count-1)) ){
+                    isInControl = true;
+                    ev.setAction(MotionEvent.ACTION_CANCEL);
+                    MotionEvent ev2 = MotionEvent.obtain(ev);
+                    dispatchTouchEvent(ev);
+                    ev2.setAction(MotionEvent.ACTION_DOWN);
+                    return dispatchTouchEvent(ev2);
+                }
                 break;
             case MotionEvent.ACTION_UP:
                 isInControl = false;
@@ -141,17 +153,17 @@ public class RefreshLayout extends LinearLayout{
     public boolean onInterceptTouchEvent(MotionEvent ev) {
         boolean isIntercept = super.onInterceptTouchEvent(ev);
         float disY;
+        int firstItemPosition = getCurrentFirstItemPosition();
+        int lastItemPosition = getCurrentLastItemPosition();
+        int count = getCurrentItemCount();
 
-        int firstItemPosition = getFirstItemPosition();
-        int lastItemPosition = getLastItemPosition();
-        count = ((RecyclerView)contentView).getAdapter().getItemCount();
         switch (ev.getAction()){
             case MotionEvent.ACTION_DOWN:
                 firstY = (int) ev.getY();
                 break;
             case MotionEvent.ACTION_MOVE:
                 disY = ev.getY() - firstY;
-                if((firstItemPosition == 0 && disY > 0) || ((lastItemPosition == count-1) && disY < 0)) return true;
+                if((firstItemPosition == 0 && disY > 0) || ((lastItemPosition == count-1) && disY < 0))return true;
                 return false;
             case MotionEvent.ACTION_UP:
                 break;
@@ -175,7 +187,7 @@ public class RefreshLayout extends LinearLayout{
                 startY = firstY;
                 disY = (int) (startY - event.getY());
                 if((disY < 0 )&& (Math.abs(disY) > 200)){
-                        refreshView.setCircleRadius(Math.abs(disY)-200);
+                    refreshView.setCircleRadius(Math.abs(disY)-200);
                 }
                 scrollTo(0,disY);
                 break;

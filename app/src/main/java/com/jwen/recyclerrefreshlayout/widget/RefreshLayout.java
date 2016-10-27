@@ -61,7 +61,6 @@ public class RefreshLayout extends LinearLayout{
         super.onFinishInflate();
         contentView = getChildAt(0);
         if(contentView instanceof RecyclerView){
-            count = ((RecyclerView)contentView).getAdapter().getItemCount();
             layoutManager= ((RecyclerView)contentView).getLayoutManager();
         }
         refreshView = new RefreshView(getContext());
@@ -112,6 +111,7 @@ public class RefreshLayout extends LinearLayout{
         boolean dispatch = super.dispatchTouchEvent(ev);
         int firstItemPosition = getFirstItemPosition();
         int lastItemPosition = getLastItemPosition();
+        count = ((RecyclerView)contentView).getAdapter().getItemCount();
 
         switch (ev.getAction()){
             case MotionEvent.ACTION_DOWN:
@@ -144,6 +144,7 @@ public class RefreshLayout extends LinearLayout{
 
         int firstItemPosition = getFirstItemPosition();
         int lastItemPosition = getLastItemPosition();
+        count = ((RecyclerView)contentView).getAdapter().getItemCount();
         switch (ev.getAction()){
             case MotionEvent.ACTION_DOWN:
                 firstY = (int) ev.getY();

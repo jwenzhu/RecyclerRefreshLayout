@@ -10,6 +10,8 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import com.jwen.recyclerrefreshlayout.widget.OnLoadingListener;
@@ -19,20 +21,14 @@ import com.jwen.recyclerrefreshlayout.widget.RefreshLayout;
 public class MainActivity extends AppCompatActivity {
 
     private Handler mHandler = new Handler(){};
+    RefreshLayout refreshLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        final RefreshLayout refreshLayout = (RefreshLayout) findViewById(R.id.refresh);
-
-
-        RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recyclerView);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.setAdapter(new MyAdapter());
-
-
+        refreshLayout = (RefreshLayout) findViewById(R.id.refresh);
         refreshLayout.setOnRefreshListener(new OnRefreshListener() {
             @Override
             public void onRefresh() {
@@ -57,11 +53,23 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        initRecyclerView();
+//        initListView();
+
     }
 
-    public class MyAdapter extends RecyclerView.Adapter<MyAdapter.ViewHolder> {
+    private void initListView() {
+        ListView listView = (ListView) findViewById(R.id.recyclerView);
+        listView.setAdapter(new ListViewAdapter());
+    }
 
+    private void initRecyclerView() {
+        RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recyclerView);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setAdapter(new RecyclerViewAdapter());
+    }
 
+    public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapter.ViewHolder> {
 
         @Override
         public ViewHolder onCreateViewHolder(ViewGroup viewGroup, int viewType) {
@@ -83,6 +91,32 @@ public class MainActivity extends AppCompatActivity {
                 super(view);
                 mTextView = (TextView) view.findViewById(R.id.tv_refresh);
             }
+        }
+    }
+
+    public class ListViewAdapter extends BaseAdapter{
+
+        @Override
+        public int getCount() {
+            return 20;
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return null;
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return 0;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_refresh,null);
+
+            ((TextView)view.findViewById(R.id.tv_refresh)).setText("RecyclerRefreshLayout" + position);
+            return view;
         }
     }
 

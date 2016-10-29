@@ -5,27 +5,34 @@ import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
+import android.view.VelocityTracker;
 import android.view.View;
-import android.widget.LinearLayout;
+import android.view.ViewConfiguration;
+import android.widget.ListView;
 import android.widget.OverScroller;
+import android.widget.RelativeLayout;
 
 /**
  * author: Jwen
  * date:2016-10-15.
  */
-public class RefreshLayout extends LinearLayout{
+public class RefreshLayout extends RelativeLayout{
 
 
     private int mDefaultWidth;//默认宽度
-    private static int DEFAULT_DURATION = 1000;//动画默认时间
+    private int DEFAULT_DURATION_SPEECH = 100;//默认时间
+    private int DEFAULT_DURATION = 1000;//默认关闭时间
     private int mRefreshHeight;//刷新控件高度
     private int mLoadingHeight;//加载控件高度
     private boolean mIsRefreshing = false;//是否刷新
     private boolean mIsLoading = false;//是否加载
     private OverScroller mScroller;
     private boolean isInControl = false;//是否菜单滑动
+    private VelocityTracker mVelocityTracker;
+    private int mScaledTouchSlop;
+    private int mScaledMinimumFlingVelocity;
+    private int mScaledMaximumFlingVelocity;
 
 
     private OnLoadingListener mOnLoadingListener;
@@ -50,67 +57,91 @@ public class RefreshLayout extends LinearLayout{
         super(context, attrs, defStyleAttr);
 
         mScroller = new OverScroller(context);
+
+        ViewConfiguration viewConfig = ViewConfiguration.get(context);
+        mScaledTouchSlop = viewConfig.getScaledTouchSlop();
+        mScaledMinimumFlingVelocity = viewConfig.getScaledMinimumFlingVelocity();
+        mScaledMaximumFlingVelocity = viewConfig.getScaledMaximumFlingVelocity();
+
     }
 
-    RefreshView refreshView;
-    LoadingView loadingView;
-    View contentView;
+    private RefreshView refreshView;
+    private LoadingView loadingView;
+    private View contentView;
+    private View emptyView;
     private RecyclerView.LayoutManager layoutManager;
     @Override
     protected void onFinishInflate() {
         super.onFinishInflate();
         contentView = getChildAt(0);
-        if(contentView instanceof RecyclerView){
+        if(contentView instanceof ListView){
+            ((ListView) contentView).addHeaderView(new View(getContext()));
+            ((ListView) contentView).addFooterView(new View(getContext()));
+        } else if(contentView instanceof RecyclerView){
             layoutManager= ((RecyclerView)contentView).getLayoutManager();
         }
         refreshView = new RefreshView(getContext());
         this.addView(refreshView);
         loadingView = new LoadingView(getContext());
         this.addView(loadingView);
+
+        emptyView = new EmptyLayout(getContext());
+        this.addView(emptyView);
     }
+
+
 
     /**
      * 获取第一条目的位置
      * @return firstItemPosition
      */
     private int getCurrentFirstItemPosition(){
-        int firstItemPosition = 0;
-        if(layoutManager == null){
-            layoutManager= ((RecyclerView)contentView).getLayoutManager();
+        if(contentView instanceof ListView){
+            return ((ListView)contentView).getFirstVisiblePosition();
+        }else if(contentView instanceof RecyclerView){
+            if(layoutManager == null){
+                layoutManager= ((RecyclerView)contentView).getLayoutManager();
+            }
+            if(layoutManager instanceof LinearLayoutManager){
+                return  ((LinearLayoutManager) layoutManager).findFirstCompletelyVisibleItemPosition();
+            }else if(layoutManager instanceof GridLayoutManager){
+                return  ((GridLayoutManager) layoutManager).findFirstCompletelyVisibleItemPosition();
+            }
         }
-        if(layoutManager instanceof LinearLayoutManager){
-            //获取第一个可见view的位置
-            firstItemPosition = ((LinearLayoutManager) layoutManager).findFirstCompletelyVisibleItemPosition();
-        }else if(layoutManager instanceof GridLayoutManager){
-            firstItemPosition = ((GridLayoutManager) layoutManager).findFirstCompletelyVisibleItemPosition();
-        }
-        return firstItemPosition;
+        return 0;
     }
 
+    /**
+     * 获取最后条目的位置
+     * @return lastItemPosition
+     */
     private int getCurrentLastItemPosition(){
-        int lastItemPosition = 0;
-        if(layoutManager == null){
-            layoutManager= ((RecyclerView)contentView).getLayoutManager();
-        }
-        if(layoutManager instanceof LinearLayoutManager){
-            //获取最后一个可见view的位置
-            lastItemPosition = ((LinearLayoutManager) layoutManager).findLastCompletelyVisibleItemPosition();
-        }else if(layoutManager instanceof GridLayoutManager){
-            lastItemPosition = ((GridLayoutManager) layoutManager).findLastCompletelyVisibleItemPosition();
-        }
-        return lastItemPosition;
+       if(contentView instanceof ListView){
+            return ((ListView)contentView).getLastVisiblePosition();
+       }else if(contentView instanceof RecyclerView){
+            if(layoutManager == null){
+                layoutManager= ((RecyclerView)contentView).getLayoutManager();
+            }
+            if(layoutManager instanceof LinearLayoutManager){
+                return  ((LinearLayoutManager) layoutManager).findLastCompletelyVisibleItemPosition();
+            }else if(layoutManager instanceof GridLayoutManager){
+                return ((GridLayoutManager) layoutManager).findLastCompletelyVisibleItemPosition();
+            }
+       }
+        return 0;
     }
 
     /**
      * 获取条目数目
-     * @return
+     * @return count
      */
     private int getCurrentItemCount(){
-        int count = 0;
-        if(contentView instanceof RecyclerView){
-            count = ((RecyclerView)contentView).getAdapter().getItemCount();
+        if(contentView instanceof ListView){
+            return ((ListView)contentView).getCount();
+        }else if(contentView instanceof RecyclerView){
+            return ((RecyclerView)contentView).getAdapter().getItemCount();
         }
-        return count;
+        return 0;
     }
 
 
@@ -124,9 +155,10 @@ public class RefreshLayout extends LinearLayout{
         int firstItemPosition = getCurrentFirstItemPosition();
         int lastItemPosition = getCurrentLastItemPosition();
         int count = getCurrentItemCount();
-
         switch (ev.getAction()){
             case MotionEvent.ACTION_DOWN:
+                if(mIsRefreshing) smoothCloseRefresh(DEFAULT_DURATION_SPEECH);
+                if(mIsLoading) smoothCloseLoading(DEFAULT_DURATION_SPEECH);
                 break;
             case MotionEvent.ACTION_MOVE:
                 if((!isInControl) && (firstItemPosition == 0 || (lastItemPosition == count-1)) ){
@@ -178,6 +210,9 @@ public class RefreshLayout extends LinearLayout{
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         boolean isTouch = super.onTouchEvent(event);
+        if(mVelocityTracker == null) mVelocityTracker = VelocityTracker.obtain();
+        mVelocityTracker.addMovement(event);
+
         int disY = 0;
         switch (event.getAction()){
             case MotionEvent.ACTION_DOWN:
@@ -186,26 +221,35 @@ public class RefreshLayout extends LinearLayout{
             case MotionEvent.ACTION_MOVE:
                 startY = firstY;
                 disY = (int) (startY - event.getY());
-                if((disY < 0 )&& (Math.abs(disY) > 200)){
+                if((disY < 0 )&& (Math.abs(disY) > 200))
                     refreshView.setCircleRadius(Math.abs(disY)-200);
-                }
                 scrollTo(0,disY);
                 break;
             case MotionEvent.ACTION_UP:
+                mVelocityTracker.computeCurrentVelocity(1000, mScaledMaximumFlingVelocity);
+                int velocityX = (int) mVelocityTracker.getYVelocity();
+                int velocity = Math.abs(velocityX);
+                int duration = DEFAULT_DURATION;
+                if (velocity > mScaledMinimumFlingVelocity)
+                    duration = disY > 0 ? getSwipeDuration(event, velocity,mLoadingHeight):getSwipeDuration(event, velocity,mRefreshHeight);
+
                 disY = (int) (startY - event.getY());
                 if(disY < 0){
                     if(Math.abs(disY) < mRefreshHeight){
-                        smoothCloseRefresh();
+                        smoothCloseRefresh(duration);
                     }else{
-                        startRefresh();
+                        startRefresh(duration);
                     }
                 }else{
                     if(Math.abs(disY) < mLoadingHeight){
-                        smoothCloseLoading();
+                        smoothCloseLoading(duration);
                     }else{
-                        startLoading();
+                        startLoading(duration);
                     }
                 }
+                mVelocityTracker.clear();
+                mVelocityTracker.recycle();
+                mVelocityTracker = null;
                 break;
             case MotionEvent.ACTION_CANCEL:
                 if (!mScroller.isFinished())
@@ -216,9 +260,38 @@ public class RefreshLayout extends LinearLayout{
     }
 
     /**
+     * 获取动画时间
+     * @param event
+     * @param velocity
+     * @return
+     */
+    private int getSwipeDuration(MotionEvent event, int velocity,int height) {
+        int sx = getScrollX();
+        int dx = (int) (event.getX() - sx);
+        int halfWidth = height / 2;
+        float distanceRatio = Math.min(1f, 1.0f * Math.abs(dx) / height);
+        float distance = halfWidth + halfWidth * distanceInfluenceForSnapDuration(distanceRatio);
+        int duration;
+        if (velocity > 0) {
+            duration = 4 * Math.round(1000 * Math.abs(distance / velocity));
+        } else {
+            final float pageDelta = (float) Math.abs(dx) / height;
+            duration = (int) ((pageDelta + 1) * 100);
+        }
+        duration = Math.min(duration, DEFAULT_DURATION);
+        return duration;
+    }
+
+    float distanceInfluenceForSnapDuration(float f) {
+        f -= 0.5f; // center the values about 0.
+        f *= 0.3f * Math.PI / 2.0f;
+        return (float) Math.sin(f);
+    }
+
+    /**
      * 关闭刷新
      */
-    private void smoothCloseRefresh() {
+    private void smoothCloseRefresh(int duration) {
         mIsRefreshing = false;
         int scrollY = getScrollY();
         mScroller.startScroll(0, scrollY,0,  -scrollY, DEFAULT_DURATION);
@@ -228,7 +301,7 @@ public class RefreshLayout extends LinearLayout{
     /**
      * 刷新方法
      */
-    private void startRefresh() {
+    private void startRefresh(int duration) {
         if(mOnRefreshListener != null){
             mOnRefreshListener.onRefresh();
         }
@@ -245,14 +318,14 @@ public class RefreshLayout extends LinearLayout{
      * 停止刷新
      */
     public void stopRefresh(){
-        smoothCloseRefresh();
+        smoothCloseRefresh(DEFAULT_DURATION);
         refreshView.stopRefresh();
     }
 
     /**
      * 关闭加载
      */
-    private void smoothCloseLoading() {
+    private void smoothCloseLoading(int duration) {
         mIsLoading = false;
         int scrollY =  getScrollY();
         mScroller.startScroll(0, scrollY,0, -scrollY, DEFAULT_DURATION);
@@ -262,7 +335,7 @@ public class RefreshLayout extends LinearLayout{
     /**
      * 加载更多
      */
-    public void startLoading(){
+    public void startLoading(int duration){
         if(mOnLoadingListener != null){
             mOnLoadingListener.onLoading();
         }
@@ -279,7 +352,7 @@ public class RefreshLayout extends LinearLayout{
      * 停止加载
      */
     public void stopLoading(){
-        smoothCloseLoading();
+        smoothCloseLoading(DEFAULT_DURATION);
         loadingView.stopLoading();
     }
 
@@ -299,16 +372,21 @@ public class RefreshLayout extends LinearLayout{
 
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
-        mDefaultWidth = contentView.getMeasuredWidthAndState();
-        int contentViewHeight = contentView.getMeasuredHeightAndState();
-        contentView.layout(0,0,mDefaultWidth,contentViewHeight);
+        if(getCurrentItemCount() == 0){
+            int emptyHeight = emptyView.getMeasuredHeightAndState();
+            int emptyWidth = emptyView.getMeasuredWidthAndState();
+            emptyView.layout(0,0,emptyWidth,emptyHeight);
+        }else{
+            mDefaultWidth = contentView.getMeasuredWidthAndState();
+            int contentViewHeight = contentView.getMeasuredHeightAndState();
+            contentView.layout(0,0,mDefaultWidth,contentViewHeight);
+            int refreshViewWidth = refreshView.getMeasuredWidthAndState();
+            mRefreshHeight = refreshView.getMeasuredHeightAndState();
+            refreshView.layout(0,-mRefreshHeight,refreshViewWidth,0);
 
-        int refreshViewWidth = refreshView.getMeasuredWidthAndState();
-        mRefreshHeight = refreshView.getMeasuredHeightAndState();
-        refreshView.layout(0,-mRefreshHeight,refreshViewWidth,0);
-
-        int loadingViewWidth = loadingView.getMeasuredWidthAndState();
-        mLoadingHeight = loadingView.getMeasuredHeightAndState();
-        loadingView.layout(0,contentViewHeight,loadingViewWidth,mLoadingHeight + contentViewHeight);
+            int loadingViewWidth = loadingView.getMeasuredWidthAndState();
+            mLoadingHeight = loadingView.getMeasuredHeightAndState();
+            loadingView.layout(0,contentViewHeight,loadingViewWidth,mLoadingHeight + contentViewHeight);
+        }
     }
 }

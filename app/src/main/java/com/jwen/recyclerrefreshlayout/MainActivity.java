@@ -27,6 +27,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+//        setContentView(R.layout.activity_main2);
+//        setContentView(R.layout.activity_main3);
 
         refreshLayout = (RefreshLayout) findViewById(R.id.refresh);
         refreshLayout.setOnRefreshListener(new OnRefreshListener() {
@@ -55,11 +57,16 @@ public class MainActivity extends AppCompatActivity {
 
         initRecyclerView();
 //        initListView();
+//        initScrollView();
+
+    }
+
+    private void initScrollView() {
 
     }
 
     private void initListView() {
-        ListView listView = (ListView) findViewById(R.id.recyclerView);
+        ListView listView = (ListView) findViewById(R.id.listView);
         listView.setAdapter(new ListViewAdapter());
     }
 

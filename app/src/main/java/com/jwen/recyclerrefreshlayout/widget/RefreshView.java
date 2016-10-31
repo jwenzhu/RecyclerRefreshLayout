@@ -66,9 +66,6 @@ public class RefreshView extends View{
         super(context, attrs, defStyleAttr);
 
         mScreenWidth = Utils.getScreenWidth(context);
-        if(mBitmap == null){
-            mBitmap = BitmapFactory.decodeResource(context.getResources(), R.mipmap.icon_refreshing);
-        }
         mPaint = new Paint();
         mPaint.setAntiAlias(true);
         mPaint.setColor(Color.GRAY);  //设置画笔颜色
@@ -80,9 +77,9 @@ public class RefreshView extends View{
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
         if(mBitmap == null){
-            mViewHeight = mBitmap.getHeight();
+            mViewHeight = 200;
         }else{
-            mViewHeight = 300;
+            mViewHeight = mBitmap.getHeight();
         }
         setMeasuredDimension(widthMeasureSpec,mViewHeight);
 
@@ -91,12 +88,12 @@ public class RefreshView extends View{
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        canvas.drawColor(Color.WHITE);
-        canvas.drawBitmap(mBitmap, null, new Rect(0, 0,mScreenWidth,mScreenWidth*mBitmap.getHeight()/mBitmap.getWidth()), mPaint);
+//        canvas.drawColor(Color.WHITE);
+        if(mBitmap != null){
+            canvas.drawBitmap(mBitmap, null, new Rect(0, 0,mScreenWidth,mScreenWidth*mBitmap.getHeight()/mBitmap.getWidth()), mPaint);
+        }
         RectF rect = new RectF(Constants.RECT_LEFT, mViewHeight - mBottomDistance - Constants.RECT_DEGREE,
                 Constants.RECT_LEFT + Constants.RECT_DEGREE, mViewHeight - mBottomDistance);
-
-
         if(mIsStartRefresh){
             canvas.drawArc(rect, mStartRadian, mEndRadian, false, mPaint);
         }else{

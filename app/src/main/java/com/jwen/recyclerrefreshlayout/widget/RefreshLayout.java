@@ -1,10 +1,13 @@
 package com.jwen.recyclerrefreshlayout.widget;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
 import android.view.View;
@@ -12,6 +15,9 @@ import android.view.ViewConfiguration;
 import android.widget.ListView;
 import android.widget.OverScroller;
 import android.widget.RelativeLayout;
+import android.widget.ScrollView;
+
+import com.jwen.recyclerrefreshlayout.R;
 
 /**
  * author: Jwen
@@ -74,19 +80,23 @@ public class RefreshLayout extends RelativeLayout{
     protected void onFinishInflate() {
         super.onFinishInflate();
         contentView = getChildAt(0);
-        if(contentView instanceof ListView){
-            ((ListView) contentView).addHeaderView(new View(getContext()));
-            ((ListView) contentView).addFooterView(new View(getContext()));
-        } else if(contentView instanceof RecyclerView){
-            layoutManager= ((RecyclerView)contentView).getLayoutManager();
-        }
         refreshView = new RefreshView(getContext());
         this.addView(refreshView);
         loadingView = new LoadingView(getContext());
-        this.addView(loadingView);
-
         emptyView = new EmptyLayout(getContext());
-        this.addView(emptyView);
+        if(contentView instanceof ScrollView){
+            Bitmap bitmap = BitmapFactory.decodeResource(getContext().getResources(), R.mipmap.icon_refreshing);
+            refreshView.setBitmapResource(bitmap);
+        }else{
+            if(contentView instanceof ListView){
+                ((ListView) contentView).addHeaderView(new View(getContext()));
+                ((ListView) contentView).addFooterView(new View(getContext()));
+            } else if(contentView instanceof RecyclerView){
+                layoutManager= ((RecyclerView)contentView).getLayoutManager();
+            }
+            this.addView(loadingView);
+            this.addView(emptyView);
+        }
     }
 
 
@@ -96,7 +106,9 @@ public class RefreshLayout extends RelativeLayout{
      * @return firstItemPosition
      */
     private int getCurrentFirstItemPosition(){
-        if(contentView instanceof ListView){
+        if(contentView instanceof ScrollView){
+            return ((ScrollView)contentView).getScrollY();
+        }else  if(contentView instanceof ListView){
             return ((ListView)contentView).getFirstVisiblePosition();
         }else if(contentView instanceof RecyclerView){
             if(layoutManager == null){
@@ -116,8 +128,8 @@ public class RefreshLayout extends RelativeLayout{
      * @return lastItemPosition
      */
     private int getCurrentLastItemPosition(){
-       if(contentView instanceof ListView){
-            return ((ListView)contentView).getLastVisiblePosition();
+       if(contentView instanceof ScrollView){
+            return ((ScrollView)contentView).getScrollY();
        }else if(contentView instanceof RecyclerView){
             if(layoutManager == null){
                 layoutManager= ((RecyclerView)contentView).getLayoutManager();
@@ -136,7 +148,9 @@ public class RefreshLayout extends RelativeLayout{
      * @return count
      */
     private int getCurrentItemCount(){
-        if(contentView instanceof ListView){
+        if(contentView instanceof ScrollView){
+            return Integer.MAX_VALUE;
+        }else if(contentView instanceof ListView){
             return ((ListView)contentView).getCount();
         }else if(contentView instanceof RecyclerView){
             return ((RecyclerView)contentView).getAdapter().getItemCount();
@@ -372,21 +386,30 @@ public class RefreshLayout extends RelativeLayout{
 
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
-        if(getCurrentItemCount() == 0){
-            int emptyHeight = emptyView.getMeasuredHeightAndState();
-            int emptyWidth = emptyView.getMeasuredWidthAndState();
-            emptyView.layout(0,0,emptyWidth,emptyHeight);
-        }else{
-            mDefaultWidth = contentView.getMeasuredWidthAndState();
-            int contentViewHeight = contentView.getMeasuredHeightAndState();
-            contentView.layout(0,0,mDefaultWidth,contentViewHeight);
-            int refreshViewWidth = refreshView.getMeasuredWidthAndState();
-            mRefreshHeight = refreshView.getMeasuredHeightAndState();
-            refreshView.layout(0,-mRefreshHeight,refreshViewWidth,0);
+        mDefaultWidth = contentView.getMeasuredWidthAndState();
+        int contentViewHeight = contentView.getMeasuredHeightAndState();
 
-            int loadingViewWidth = loadingView.getMeasuredWidthAndState();
-            mLoadingHeight = loadingView.getMeasuredHeightAndState();
+        int refreshViewWidth = refreshView.getMeasuredWidthAndState();
+        mRefreshHeight = refreshView.getMeasuredHeightAndState();
+
+        int loadingViewWidth = loadingView.getMeasuredWidthAndState();
+        mLoadingHeight = loadingView.getMeasuredHeightAndState();
+
+        if(contentView instanceof ScrollView){
+            contentView.layout(0,0,mDefaultWidth,contentViewHeight);
+            refreshView.layout(0,-mRefreshHeight,refreshViewWidth,0);
             loadingView.layout(0,contentViewHeight,loadingViewWidth,mLoadingHeight + contentViewHeight);
+        }else{
+            if(getCurrentItemCount() == 0){
+                int emptyHeight = emptyView.getMeasuredHeightAndState();
+                int emptyWidth = emptyView.getMeasuredWidthAndState();
+                emptyView.layout(0,0,emptyWidth,emptyHeight);
+            }else{
+                contentView.layout(0,0,mDefaultWidth,contentViewHeight);
+                refreshView.layout(0,-mRefreshHeight,refreshViewWidth,0);
+                loadingView.layout(0,contentViewHeight,loadingViewWidth,mLoadingHeight + contentViewHeight);
+            }
         }
+
     }
 }
